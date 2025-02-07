@@ -9,15 +9,29 @@ import { Line } from 'react-konva';
 import axios from 'axios';
 
 function App() {
+  // MASTER LIST of all fetched companies
   const [companies, setCompanies] = useState([]);
-  const [hoveredCompany, setHoveredCompany] = useState({ company: null, pos: null });
-  const [activeCompany, setActiveCompany] = useState(null);
-  const [zoomScale, setZoomScale] = useState(1);
-  const [filters, setFilters] = useState({ country: '', ranking: '' });
 
-  // Simulate fetching companies data from a free API.
+  // We unify the tooltip so it can show either a company or a founder
+  // hoveredNode = { type: 'company' | 'founder', data: <object>, pos: {x, y} }
+  const [hoveredNode, setHoveredNode] = useState(null);
+
+  // activeCompany: the company whose founder nodes we’re showing
+  const [activeCompany, setActiveCompany] = useState(null);
+
+  // We might track zoom scale, though we’re not necessarily using it in the UI
+  const [zoomScale, setZoomScale] = useState(1);
+
+  // Our filters now hold an array of selectedCountries + a numeric topN
+  const [filters, setFilters] = useState({
+    selectedCountries: [],
+    topN: 10, // default to top 10
+  });
+
+  // ====== Mock data fetching for demonstration ======
   useEffect(() => {
-    // Replace the following with an actual API call (e.g., to Wikidata/SPARQL)
+    // Replace the following with an actual API call (SPARQL, DBpedia, etc.)
+    // For now, just use setTimeout to simulate fetching
     setTimeout(() => {
       setCompanies([
         {
@@ -27,11 +41,21 @@ function App() {
           country: 'USA',
           ranking: 1,
           founders: [
-            { id: 'f1', name: 'Larry Page', image: 'https://via.placeholder.com/80?text=LP' },
-            { id: 'f2', name: 'Sergey Brin', image: 'https://via.placeholder.com/80?text=SB' },
+            {
+              id: 'f1',
+              name: 'Larry Page',
+              image: 'https://via.placeholder.com/80?text=LP',
+              wiki: 'https://en.wikipedia.org/wiki/Larry_Page',
+            },
+            {
+              id: 'f2',
+              name: 'Sergey Brin',
+              image: 'https://via.placeholder.com/80?text=SB',
+              wiki: 'https://en.wikipedia.org/wiki/Sergey_Brin',
+            },
           ],
-          x: 250, // initial x
-          y: 200, // initial y
+          x: 250,
+          y: 200,
         },
         {
           id: '2',
@@ -40,75 +64,132 @@ function App() {
           country: 'USA',
           ranking: 2,
           founders: [
-            { id: 'f3', name: 'Mark Zuckerberg', image: 'https://via.placeholder.com/80?text=MZ' },
+            {
+              id: 'f3',
+              name: 'Mark Zuckerberg',
+              image: 'https://via.placeholder.com/80?text=MZ',
+              wiki: 'https://en.wikipedia.org/wiki/Mark_Zuckerberg',
+            },
           ],
           x: 500,
           y: 300,
         },
-        // More companies can be fetched from a free API.
+        {
+          id: '3',
+          name: 'Infosys',
+          domain: 'infosys.com',
+          country: 'India',
+          ranking: 50,
+          founders: [
+            {
+              id: 'f4',
+              name: 'N. R. Narayana Murthy',
+              image: 'https://via.placeholder.com/80?text=NM',
+              wiki: 'https://en.wikipedia.org/wiki/N._R._Narayana_Murthy',
+            },
+          ],
+          x: 800,
+          y: 400,
+        },
+        // Add more to test
       ]);
     }, 500);
   }, []);
 
-  // Compute available filter options.
-  const countries = Array.from(new Set(companies.map(c => c.country)));
-  const rankings = [10, 100, 200]; // Example thresholds.
+  // ====== Utility: get unique countries for filters ======
+  const allCountries = Array.from(new Set(companies.map((c) => c.country)));
 
-  const filteredCompanies = companies.filter(c => {
-    let match = true;
-    if (filters.country) match = match && c.country === filters.country;
-    if (filters.ranking) match = match && c.ranking <= Number(filters.ranking);
-    return match;
-  });
-
-  // Update company's position on drag end.
-  const updateCompanyPosition = (companyId, newPos) => {
-    setCompanies(prev =>
-      prev.map(c => (c.id === companyId ? { ...c, x: newPos.x, y: newPos.y } : c))
+  // ====== Filtering logic ======
+  // 1. Sort companies by ranking ascending
+  let filteredCompanies = [...companies].sort((a, b) => a.ranking - b.ranking);
+  // 2. Slice topN
+  filteredCompanies = filteredCompanies.slice(0, filters.topN);
+  // 3. Filter by selected countries if any are checked
+  if (filters.selectedCountries.length > 0) {
+    filteredCompanies = filteredCompanies.filter((c) =>
+      filters.selectedCountries.includes(c.country)
     );
-    // If this company is active, update its stored position.
-    if (activeCompany && activeCompany.id === companyId) {
-      setActiveCompany(prev => ({ ...prev, x: newPos.x, y: newPos.y }));
-    }
+  }
+
+  // ====== Founder layout: radial around the company node ======
+  const getFounderOffsetsRadial = (n) => {
+    const radius = 100; // distance from company node
+    const angleStep = (2 * Math.PI) / n;
+    return Array.from({ length: n }, (_, i) => {
+      const angle = i * angleStep;
+      return {
+        x: radius * Math.cos(angle),
+        y: radius * Math.sin(angle),
+      };
+    });
   };
 
-  // Handle hover events.
-  const handleHover = (company, pos) => {
-    setHoveredCompany({ company, pos });
-  };
-
-  // Compute relative offsets for founder nodes.
-  const getFounderRelativeOffsets = (n) => {
-    const spacing = 100;
-    return Array.from({ length: n }, (_, i) => ({
-      x: spacing,
-      y: (i - (n - 1) / 2) * spacing,
-    }));
-  };
-
-  // Handle node click: activate a company node.
-  const handleClick = (company, pos) => {
+  // ====== Handle node clicking ======
+  const handleClickCompany = (company) => {
     if (activeCompany && activeCompany.id === company.id) {
+      // clicking the same company node again collapses
       setActiveCompany(null);
     } else {
-      const offsets = getFounderRelativeOffsets(company.founders.length);
-      // Store the company's current x,y as the base.
+      const offsets = getFounderOffsetsRadial(company.founders.length);
       setActiveCompany({ ...company, founderOffsets: offsets });
     }
   };
 
-  // Advanced zoom handling via wheel event.
+  // ====== Drag updates ======
+  const updateCompanyPosition = (companyId, newPos) => {
+    setCompanies((prev) =>
+      prev.map((c) => (c.id === companyId ? { ...c, x: newPos.x, y: newPos.y } : c))
+    );
+    // If this company is active, update it as well
+    if (activeCompany && activeCompany.id === companyId) {
+      setActiveCompany((prev) => ({
+        ...prev,
+        x: newPos.x,
+        y: newPos.y,
+      }));
+    }
+  };
+
+  // ====== Hover handling ======
+  const handleHoverCompany = (company, pos) => {
+    if (!company || !pos) {
+      setHoveredNode(null);
+    } else {
+      setHoveredNode({
+        type: 'company',
+        data: company,
+        pos,
+      });
+    }
+  };
+
+  const handleHoverFounder = (founder, pos) => {
+    if (!founder || !pos) {
+      setHoveredNode(null);
+    } else {
+      setHoveredNode({
+        type: 'founder',
+        data: founder,
+        pos,
+      });
+    }
+  };
+
+  // ====== Zoom & pan ======
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
     const scaleBy = 1.05;
     const stage = e.target.getStage();
     const oldScale = stage.scaleX();
     const pointer = stage.getPointerPosition();
+
     const mousePointTo = {
       x: (pointer.x - stage.x()) / oldScale,
       y: (pointer.y - stage.y()) / oldScale,
     };
-    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    const direction = e.evt.deltaY > 0 ? -1 : 1;
+    const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
     stage.scale({ x: newScale, y: newScale });
     const newPos = {
       x: pointer.x - mousePointTo.x * newScale,
@@ -119,32 +200,32 @@ function App() {
     setZoomScale(newScale);
   }, []);
 
-  const handleFilterChange = (newFilter) => {
-    setFilters(prev => ({ ...prev, ...newFilter }));
+  // ====== Filter change handler ======
+  const handleFilterChange = (newFilters) => {
     setActiveCompany(null);
+    setHoveredNode(null);
+    setFilters(newFilters);
   };
 
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>Infinite Canvas App</h1>
+        <h1>FoundedBy (Infinite Canvas)</h1>
       </header>
       <Filters
-        countries={countries}
-        rankings={rankings}
-        selectedCountry={filters.country}
-        selectedRanking={filters.ranking}
+        allCountries={allCountries}
+        filters={filters}
         onChange={handleFilterChange}
       />
       <Canvas onWheel={handleWheel}>
-        {filteredCompanies.map(company => (
+        {filteredCompanies.map((company) => (
           <CompanyIcon
             key={company.id}
             company={company}
             x={company.x}
             y={company.y}
-            onHover={handleHover}
-            onClick={handleClick}
+            onHover={handleHoverCompany}
+            onClick={handleClickCompany}
             onDragEnd={updateCompanyPosition}
           />
         ))}
@@ -153,14 +234,18 @@ function App() {
           activeCompany.founderOffsets &&
           activeCompany.founders.map((founder, index) => {
             const offset = activeCompany.founderOffsets[index];
-            // The founder's absolute position is parent's current x,y plus the stored offset.
             const founderPos = {
               x: activeCompany.x + offset.x,
               y: activeCompany.y + offset.y,
             };
             return (
               <Fragment key={founder.id}>
-                <FounderIcon founder={founder} x={founderPos.x} y={founderPos.y} />
+                <FounderIcon
+                  founder={founder}
+                  x={founderPos.x}
+                  y={founderPos.y}
+                  onHover={handleHoverFounder}
+                />
                 <Line
                   points={[activeCompany.x, activeCompany.y, founderPos.x, founderPos.y]}
                   stroke="gray"
@@ -170,7 +255,7 @@ function App() {
             );
           })}
       </Canvas>
-      <Tooltip company={hoveredCompany.company} position={hoveredCompany.pos} />
+      <Tooltip hoveredNode={hoveredNode} />
     </div>
   );
 }

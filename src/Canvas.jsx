@@ -1,5 +1,4 @@
 import { Stage, Layer } from 'react-konva';
-import { useCallback } from 'react';
 import './Canvas.css';
 
 const Canvas = ({ children, onWheel }) => {
