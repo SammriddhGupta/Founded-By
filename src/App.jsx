@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment, useMemo } from 'react';
 import Canvas from './Canvas';
 import CompanyIcon from './CompanyIcon';
 import FounderIcon from './FounderIcon';
@@ -6,176 +6,204 @@ import Tooltip from './Tooltip';
 import Filters from './Filters';
 import './App.css';
 import { Line } from 'react-konva';
-import axios from 'axios';
+
+const WIKIDATA_SPARQL_URL = 'https://query.wikidata.org/sparql';
+const COMPANY_RADIUS = 200;
+const FOUNDER_RADIUS = 180;
 
 function App() {
-  // MASTER LIST of all fetched companies
-  const [companies, setCompanies] = useState([]);
-
-  // We unify the tooltip so it can show either a company or a founder
-  // hoveredNode = { type: 'company' | 'founder', data: <object>, pos: {x, y} }
+  const [companies, setCompanies] = useState([]);         // full data from Wikidata
+  const [filteredCompanies, setFilteredCompanies] = useState([]); // after filters
   const [hoveredNode, setHoveredNode] = useState(null);
-
-  // activeCompany: the company whose founder nodes we’re showing
   const [activeCompany, setActiveCompany] = useState(null);
-
-  // We might track zoom scale, though we’re not necessarily using it in the UI
   const [zoomScale, setZoomScale] = useState(1);
 
-  // Our filters now hold an array of selectedCountries + a numeric topN
+  // Default to top-10, with country = "United States of America" 
+  // (which is the common label on Wikidata for US-based entities).
   const [filters, setFilters] = useState({
     selectedCountries: [],
-    topN: 10, // default to top 10
+    topN: 10,
   });
 
-  // ====== Mock data fetching for demonstration ======
+  // =========================================================================
+  // 1) Fetch real data from Wikidata using SPARQL, including founder images
+
   useEffect(() => {
-    // Replace the following with an actual API call (SPARQL, DBpedia, etc.)
-    // For now, just use setTimeout to simulate fetching
-    setTimeout(() => {
-      setCompanies([
-        {
-          id: '1',
-          name: 'Google',
-          domain: 'google.com',
-          country: 'USA',
-          ranking: 1,
-          founders: [
-            {
-              id: 'f1',
-              name: 'Larry Page',
-              image: 'https://via.placeholder.com/80?text=LP',
-              wiki: 'https://en.wikipedia.org/wiki/Larry_Page',
-            },
-            {
-              id: 'f2',
-              name: 'Sergey Brin',
-              image: 'https://via.placeholder.com/80?text=SB',
-              wiki: 'https://en.wikipedia.org/wiki/Sergey_Brin',
-            },
-          ],
-          x: 250,
-          y: 200,
-        },
-        {
-          id: '2',
-          name: 'Facebook',
-          domain: 'facebook.com',
-          country: 'USA',
-          ranking: 2,
-          founders: [
-            {
-              id: 'f3',
-              name: 'Mark Zuckerberg',
-              image: 'https://via.placeholder.com/80?text=MZ',
-              wiki: 'https://en.wikipedia.org/wiki/Mark_Zuckerberg',
-            },
-          ],
-          x: 500,
-          y: 300,
-        },
-        {
-          id: '3',
-          name: 'Infosys',
-          domain: 'infosys.com',
-          country: 'India',
-          ranking: 50,
-          founders: [
-            {
-              id: 'f4',
-              name: 'N. R. Narayana Murthy',
-              image: 'https://via.placeholder.com/80?text=NM',
-              wiki: 'https://en.wikipedia.org/wiki/N._R._Narayana_Murthy',
-            },
-          ],
-          x: 800,
-          y: 400,
-        },
-        // Add more to test
-      ]);
-    }, 500);
+    async function fetchWikidataAndImages() {
+      try {
+        // A) Fetch from Wikidata
+        const query = `
+          SELECT ?company ?companyLabel ?countryLabel ?founder ?founderLabel ?founderArticle ?revenue ?domain ?founderImage
+          WHERE {
+            ?company wdt:P31 wd:Q4830453;
+                     wdt:P17 ?country;
+                     wdt:P112 ?founder;
+                     wdt:P2139 ?revenue;
+                     wdt:P856 ?website.
+  
+            BIND( REPLACE(STR(?website), "https?://(www\\\\.)?", "") as ?domainFull )
+            BIND( REPLACE(?domainFull, "/.*", "") as ?domain )
+  
+            OPTIONAL { ?founder wdt:P18 ?founderImage. }
+            OPTIONAL {
+              ?founderArticle schema:about ?founder;
+                              schema:isPartOf <https://en.wikipedia.org/>;
+                              schema:name ?wpName.
+            }
+  
+            SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+          }
+          ORDER BY DESC(?revenue)
+          LIMIT 300
+        `;
+  
+        const res = await fetch(`http://localhost:4000/sparql?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        console.log('SPARQL result from proxy:', data);
+  
+        const rawRows = data.results.bindings;
+        const tempMap = {};
+  
+        // Collect "File:..." names for later MediaWiki calls
+        const allFileNames = new Set();
+  
+        rawRows.forEach((row) => {
+          const companyId = row.company.value;
+          const companyName = row.companyLabel?.value || 'No name';
+          const countryName = row.countryLabel?.value || 'Unknown';
+          const revenue = parseFloat(row.revenue.value) || 0;
+          const domain = row.domain?.value || '';
+          const founderId = row.founder.value;
+          const founderName = row.founderLabel?.value || 'Unknown';
+          const founderWiki = row.founderArticle?.value || '';
+  
+          // E.g. http://commons.wikimedia.org/wiki/Special:FilePath/Roman%20Abramovich.png
+          const p18Url = row.founderImage?.value || '';
+  
+          let founderImageFileName = '';
+          if (p18Url) {
+            // strip out the path prefix
+            const afterPath = p18Url.replace(/^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//, '');
+            const decoded = decodeURIComponent(afterPath); // "Roman Abramovich.png"
+            if (!decoded.startsWith('File:')) {
+              founderImageFileName = `File:${decoded}`;
+            } else {
+              founderImageFileName = decoded;
+            }
+            allFileNames.add(founderImageFileName);
+          }
+  
+          if (!tempMap[companyId]) {
+            tempMap[companyId] = {
+              id: companyId,
+              name: companyName,
+              country: countryName,
+              revenue: revenue,
+              domain: domain,
+              founders: [],
+              // random positions
+              x: Math.floor(Math.random() * 2000 + 100),
+              y: Math.floor(Math.random() * 2000 + 100),
+            };
+          }
+  
+          const existingFounders = tempMap[companyId].founders;
+          if (!existingFounders.some((f) => f.id === founderId)) {
+            existingFounders.push({
+              id: founderId,
+              name: founderName,
+              wiki: founderWiki,
+              imageFileName: founderImageFileName,
+              image: '',
+            });
+          }
+        });
+  
+        let companyArray = Object.values(tempMap);
+        // Sort by revenue descending
+        companyArray.sort((a, b) => b.revenue - a.revenue);
+  
+        // B) Chunked approach to fetch thumbnail URLs from MediaWiki
+        const fileNamesArray = Array.from(allFileNames);
+        const fileToThumbUrl = {};
+  
+        async function fetchMediaWikiBatch(titlesBatch) {
+          const joinedTitles = titlesBatch
+            .map((f) => f.replace(/ /g, '_')) // underscores
+            .join('|');
+  
+          const mwUrl = `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=300&format=json&origin=*&titles=${encodeURIComponent(joinedTitles)}`;
+  
+          const mwRes = await fetch(mwUrl);
+          const mwData = await mwRes.json();
+  
+          if (mwData.query && mwData.query.pages) {
+            Object.values(mwData.query.pages).forEach((page) => {
+              if (page.title && page.imageinfo && page.imageinfo.length > 0) {
+                const title = page.title.replace(/_/g, ' ');
+                const thumburl = page.imageinfo[0].thumburl || page.imageinfo[0].url;
+                fileToThumbUrl[title] = thumburl;
+              }
+            });
+          }
+        }
+  
+        // Process 50 items at a time
+        const chunkSize = 50;
+        for (let i = 0; i < fileNamesArray.length; i += chunkSize) {
+          const batch = fileNamesArray.slice(i, i + chunkSize);
+          await fetchMediaWikiBatch(batch);
+        }
+  
+        // Now fill in the 'image' field for each founder
+        companyArray = companyArray.map((co) => {
+          const newFounders = co.founders.map((f) => {
+            if (f.imageFileName) {
+              const maybeThumb = fileToThumbUrl[f.imageFileName];
+              if (maybeThumb) {
+                return { ...f, image: maybeThumb };
+              }
+            }
+            return f;
+          });
+          return { ...co, founders: newFounders };
+        });
+  
+        // Finally set state
+        setCompanies(companyArray);
+      } catch (err) {
+        console.error('SPARQL or MediaWiki fetch error:', err);
+      }
+    }
+  
+    fetchWikidataAndImages();
   }, []);
+  
+  
 
-  // ====== Utility: get unique countries for filters ======
-  const allCountries = Array.from(new Set(companies.map((c) => c.country)));
 
-  // ====== Filtering logic ======
-  // 1. Sort companies by ranking ascending
-  let filteredCompanies = [...companies].sort((a, b) => a.ranking - b.ranking);
-  // 2. Slice topN
-  filteredCompanies = filteredCompanies.slice(0, filters.topN);
-  // 3. Filter by selected countries if any are checked
-  if (filters.selectedCountries.length > 0) {
-    filteredCompanies = filteredCompanies.filter((c) =>
-      filters.selectedCountries.includes(c.country)
-    );
-  }
 
-  // ====== Founder layout: radial around the company node ======
-  const getFounderOffsetsRadial = (n) => {
-    const radius = 100; // distance from company node
-    const angleStep = (2 * Math.PI) / n;
-    return Array.from({ length: n }, (_, i) => {
-      const angle = i * angleStep;
-      return {
-        x: radius * Math.cos(angle),
-        y: radius * Math.sin(angle),
-      };
-    });
-  };
+  // =========================================================================
+  // 2) Apply filters (topN, selectedCountries) whenever [companies, filters] changes
 
-  // ====== Handle node clicking ======
-  const handleClickCompany = (company) => {
-    if (activeCompany && activeCompany.id === company.id) {
-      // clicking the same company node again collapses
-      setActiveCompany(null);
-    } else {
-      const offsets = getFounderOffsetsRadial(company.founders.length);
-      setActiveCompany({ ...company, founderOffsets: offsets });
+  // Memoize the list of countries so it doesn’t re-calc on every render
+  const allCountries = useMemo(() => {
+    return [...new Set(companies.map((c) => c.country))].sort();
+  }, [companies]);
+
+
+  useEffect(() => {
+    let result = companies
+    if (filters.selectedCountries.length > 0) {
+      result = result.filter((c) => filters.selectedCountries.includes(c.country));
     }
-  };
+    result = result.slice(0, filters.topN);
+    setFilteredCompanies(result);
+    console.log("Filtered companies are: " ,result)
+  }, [companies, filters]);
 
-  // ====== Drag updates ======
-  const updateCompanyPosition = (companyId, newPos) => {
-    setCompanies((prev) =>
-      prev.map((c) => (c.id === companyId ? { ...c, x: newPos.x, y: newPos.y } : c))
-    );
-    // If this company is active, update it as well
-    if (activeCompany && activeCompany.id === companyId) {
-      setActiveCompany((prev) => ({
-        ...prev,
-        x: newPos.x,
-        y: newPos.y,
-      }));
-    }
-  };
-
-  // ====== Hover handling ======
-  const handleHoverCompany = (company, pos) => {
-    if (!company || !pos) {
-      setHoveredNode(null);
-    } else {
-      setHoveredNode({
-        type: 'company',
-        data: company,
-        pos,
-      });
-    }
-  };
-
-  const handleHoverFounder = (founder, pos) => {
-    if (!founder || !pos) {
-      setHoveredNode(null);
-    } else {
-      setHoveredNode({
-        type: 'founder',
-        data: founder,
-        pos,
-      });
-    }
-  };
-
-  // ====== Zoom & pan ======
+  // =========================================================================
+  // 3) Zoom & pan handling
   const handleWheel = useCallback((e) => {
     e.evt.preventDefault();
     const scaleBy = 1.05;
@@ -200,7 +228,68 @@ function App() {
     setZoomScale(newScale);
   }, []);
 
-  // ====== Filter change handler ======
+  // =========================================================================
+  // 4) Company click => toggle founders
+  const getFounderOffsetsRadial = (count) => {
+    // Define the radii and desired gap:
+    const companyRadius = 200; // same as used in CompanyIcon
+    const founderRadius = 180; // same as used in FounderIcon
+    const gap = 150; // desired gap between the circles
+    
+    // Calculate the offset distance so the circles don't overlap:
+    const offsetDistance = companyRadius + gap + founderRadius; // e.g. 40 + 10 + 30 = 80
+    
+    const angleStep = (2 * Math.PI) / count;
+    return Array.from({ length: count }, (_, i) => {
+      const angle = i * angleStep;
+      return {
+        x: offsetDistance * Math.cos(angle),
+        y: offsetDistance * Math.sin(angle),
+      };
+    });
+  };
+  
+
+  const handleClickCompany = (company) => {
+    if (activeCompany && activeCompany.id === company.id) {
+      setActiveCompany(null);
+    } else {
+      const offsets = getFounderOffsetsRadial(company.founders.length);
+      setActiveCompany({ ...company, founderOffsets: offsets });
+    }
+  };
+
+  // =========================================================================
+  // 5) Company drag => update positions
+  const updateCompanyPosition = (companyId, newPos) => {
+    setCompanies((prev) =>
+      prev.map((c) => (c.id === companyId ? { ...c, ...newPos } : c))
+    );
+    if (activeCompany && activeCompany.id === companyId) {
+      setActiveCompany((prev) => ({ ...prev, ...newPos }));
+    }
+  };
+
+  // =========================================================================
+  // 6) Hover => unified tooltip
+  const handleHoverCompany = (company, pos) => {
+    if (!company || !pos) {
+      setHoveredNode(null);
+    } else {
+      setHoveredNode({ type: 'company', data: company, pos });
+    }
+  };
+
+  const handleHoverFounder = (founder, pos) => {
+    if (!founder || !pos) {
+      setHoveredNode(null);
+    } else {
+      setHoveredNode({ type: 'founder', data: founder, pos });
+    }
+  };
+
+  // =========================================================================
+  // 7) Filter changes
   const handleFilterChange = (newFilters) => {
     setActiveCompany(null);
     setHoveredNode(null);
@@ -210,13 +299,19 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>FoundedBy (Infinite Canvas)</h1>
+        <h1>FoundedBy (Wikidata + Founder Images)</h1>
+        <p style={{ fontSize: '0.9rem', maxWidth: '400px' }}>
+          Showing real companies from Wikidata (sorted by revenue). Click a node to see
+          founder(s) with actual Wikidata images if available.
+        </p>
       </header>
+
       <Filters
         allCountries={allCountries}
         filters={filters}
         onChange={handleFilterChange}
       />
+
       <Canvas onWheel={handleWheel}>
         {filteredCompanies.map((company) => (
           <CompanyIcon
@@ -229,32 +324,44 @@ function App() {
             onDragEnd={updateCompanyPosition}
           />
         ))}
+
         {activeCompany &&
           activeCompany.founders &&
           activeCompany.founderOffsets &&
-          activeCompany.founders.map((founder, index) => {
-            const offset = activeCompany.founderOffsets[index];
-            const founderPos = {
-              x: activeCompany.x + offset.x,
-              y: activeCompany.y + offset.y,
-            };
+          activeCompany.founders.map((founder, i) => {
+            const offset = activeCompany.founderOffsets[i];
+            // Center of founder node:
+            const fx = activeCompany.x + offset.x;
+            const fy = activeCompany.y + offset.y;
+
+            // Compute vector between company and founder centers
+            const dx = fx - activeCompany.x;
+            const dy = fy - activeCompany.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const normalizedX = dist !== 0 ? dx / dist : 0;
+            const normalizedY = dist !== 0 ? dy / dist : 0;
+            
+            // Line start: edge of company circle
+            const startX = activeCompany.x + COMPANY_RADIUS * normalizedX;
+            const startY = activeCompany.y + COMPANY_RADIUS * normalizedY;
+            
+            // Line end: edge of founder circle
+            const endX = fx - FOUNDER_RADIUS * normalizedX;
+            const endY = fy - FOUNDER_RADIUS * normalizedY;
+
             return (
               <Fragment key={founder.id}>
-                <FounderIcon
-                  founder={founder}
-                  x={founderPos.x}
-                  y={founderPos.y}
-                  onHover={handleHoverFounder}
-                />
+                <FounderIcon founder={founder} x={fx} y={fy} onHover={handleHoverFounder} />
                 <Line
-                  points={[activeCompany.x, activeCompany.y, founderPos.x, founderPos.y]}
+                  points={[startX, startY, endX, endY]}
                   stroke="gray"
-                  strokeWidth={2}
+                  strokeWidth={5}
                 />
               </Fragment>
             );
           })}
       </Canvas>
+
       <Tooltip hoveredNode={hoveredNode} />
     </div>
   );
