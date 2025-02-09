@@ -4,7 +4,6 @@ import './Filters.css';
 const Filters = ({ allCountries, filters, onChange }) => {
   const { selectedCountries, topN } = filters;
 
-  // When a country checkbox changes, we either add or remove it from selectedCountries
   const handleCountryToggle = (country) => {
     let newCountries = [...selectedCountries];
     if (newCountries.includes(country)) {
@@ -15,7 +14,6 @@ const Filters = ({ allCountries, filters, onChange }) => {
     onChange({ ...filters, selectedCountries: newCountries });
   };
 
-  // Handle topN changes (top 10, top 50, top 200, etc.)
   const handleTopNChange = (e) => {
     onChange({ ...filters, topN: Number(e.target.value) });
   };
