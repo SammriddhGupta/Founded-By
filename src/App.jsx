@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment, useMemo } from 'react';
 import Canvas from './Canvas';
 import CompanyIcon from './CompanyIcon';
 import FounderIcon from './FounderIcon';
@@ -185,12 +185,21 @@ function App() {
 
   // =========================================================================
   // 2) Apply filters (topN, selectedCountries) whenever [companies, filters] changes
+
+  // Memoize the list of countries so it doesn’t re-calc on every render
+  const allCountries = useMemo(() => {
+    return [...new Set(companies.map((c) => c.country))].sort();
+  }, [companies]);
+
+
   useEffect(() => {
-    let result = companies.slice(0, filters.topN);
+    let result = companies
     if (filters.selectedCountries.length > 0) {
       result = result.filter((c) => filters.selectedCountries.includes(c.country));
     }
+    result = result.slice(0, filters.topN);
     setFilteredCompanies(result);
+    console.log("Filtered companies are: " ,result)
   }, [companies, filters]);
 
   // =========================================================================
@@ -298,7 +307,7 @@ function App() {
       </header>
 
       <Filters
-        allCountries={[...new Set(companies.map((c) => c.country))].sort()}
+        allCountries={allCountries}
         filters={filters}
         onChange={handleFilterChange}
       />
