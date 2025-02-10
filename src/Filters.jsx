@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import PropTypes from 'prop-types';
 import './Filters.css';
 
 const Filters = ({ allCountries, filters, onChange }) => {
@@ -61,6 +62,15 @@ const Filters = ({ allCountries, filters, onChange }) => {
       )}
     </div>
   );
+};
+
+Filters.propTypes = {
+  allCountries: PropTypes.arrayOf(PropTypes.string).isRequired,
+  filters: PropTypes.shape({
+    selectedCountries: PropTypes.arrayOf(PropTypes.string).isRequired,
+    topN: PropTypes.number.isRequired,
+  }).isRequired,
+  onChange: PropTypes.func.isRequired,
 };
 
 export default Filters;

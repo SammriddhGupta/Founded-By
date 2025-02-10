@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import './Tooltip.css';
 
 const Tooltip = ({ hoveredNode }) => {
@@ -36,6 +37,22 @@ const Tooltip = ({ hoveredNode }) => {
   }
 
   return null;
+};
+
+Tooltip.propTypes = {
+  hoveredNode: PropTypes.shape({
+    type: PropTypes.oneOf(['company', 'founder']).isRequired,
+    data: PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      country: PropTypes.string,
+      revenue: PropTypes.number,
+      wiki: PropTypes.string,
+    }).isRequired,
+    pos: PropTypes.shape({
+      x: PropTypes.number.isRequired,
+      y: PropTypes.number.isRequired,
+    }).isRequired,
+  }),
 };
 
 export default Tooltip;
