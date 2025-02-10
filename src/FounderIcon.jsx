@@ -1,11 +1,11 @@
-import { Circle } from 'react-konva';
-import { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
-import Konva from 'konva';
+import { Circle } from "react-konva";
+import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
+import Konva from "konva";
 
 const FounderIcon = ({ founder, x, y, onHover }) => {
   // also change in app.jsx
-  const radius = 180;
+  const radius = 260;
   const diameter = radius * 2;
 
   const [face, setFace] = useState(null);
@@ -13,11 +13,15 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
   const [patternOffset, setPatternOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const imgUrl = founder.image || `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(founder.name)}&font=Open+Sans`;
+    const imgUrl =
+      founder.image ||
+      `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(
+        founder.name
+      )}&font=Open+Sans`;
     if (!imgUrl) return;
 
     const img = new window.Image();
-    img.crossOrigin = 'Anonymous';
+    img.crossOrigin = "Anonymous";
     img.src = imgUrl;
 
     img.onload = () => {
@@ -31,11 +35,16 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
 
     img.onerror = () => {
       const fallback = new window.Image();
-      fallback.crossOrigin = 'Anonymous';
-      fallback.src = `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(founder.name)}&font=Open+Sans`;
+      fallback.crossOrigin = "Anonymous";
+      fallback.src = `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(
+        founder.name
+      )}&font=Open+Sans`;
       fallback.onload = () => {
         setFace(fallback);
-        const scale = Math.min(diameter / fallback.width, diameter / fallback.height);
+        const scale = Math.min(
+          diameter / fallback.width,
+          diameter / fallback.height
+        );
         setPatternScale({ x: scale, y: scale });
         setPatternOffset({ x: fallback.width / 2, y: fallback.height / 2 });
       };
@@ -64,7 +73,7 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
           scaleX: 1.1,
           scaleY: 1.1,
         }).play();
-        e.target.getStage().container().style.cursor = 'pointer';
+        e.target.getStage().container().style.cursor = "pointer";
         if (onHover) {
           const pos = e.target.getStage().getPointerPosition();
           onHover(founder, pos);
@@ -78,12 +87,12 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
           scaleX: 1,
           scaleY: 1,
         }).play();
-        e.target.getStage().container().style.cursor = 'default';
+        e.target.getStage().container().style.cursor = "default";
         if (onHover) onHover(null, null);
       }}
       onClick={() => {
         if (founder.wiki) {
-          window.open(founder.wiki, '_blank');
+          window.open(founder.wiki, "_blank");
         }
       }}
     />
@@ -100,6 +109,5 @@ FounderIcon.propTypes = {
   y: PropTypes.number.isRequired,
   onHover: PropTypes.func,
 };
-
 
 export default FounderIcon;
