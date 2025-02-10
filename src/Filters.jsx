@@ -1,10 +1,10 @@
-import {useState} from 'react';
-import PropTypes from 'prop-types';
-import './Filters.css';
+import { useState } from "react";
+import PropTypes from "prop-types";
+import "./Filters.css";
 
 const Filters = ({ allCountries, filters, onChange }) => {
   const { selectedCountries, topN } = filters;
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -26,9 +26,13 @@ const Filters = ({ allCountries, filters, onChange }) => {
 
   return (
     <div className="filters">
-      <div className="filters-header" onClick={toggleCollapse} style={{ cursor: 'pointer' }}>
+      <div
+        className="filters-header"
+        onClick={toggleCollapse}
+        style={{ cursor: "pointer" }}
+      >
         <h4>Filters</h4>
-        <span className="arrow-icon">{isCollapsed ? '►' : '▼'}</span>
+        <span className="arrow-icon">{isCollapsed ? "►" : "▼"}</span>
       </div>
       {!isCollapsed && (
         <div className="filters-content">
@@ -55,7 +59,7 @@ const Filters = ({ allCountries, filters, onChange }) => {
               <option value={50}>Top 50</option>
               <option value={100}>Top 100</option>
               <option value={150}>Top 150</option>
-              <option value={200}>Top 200</option>
+              <option value={300}>Top 300</option>
             </select>
           </div>
         </div>
