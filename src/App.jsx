@@ -11,15 +11,13 @@ const COMPANY_RADIUS = 200;
 const FOUNDER_RADIUS = 180;
 
 function App() {
-  const [companies, setCompanies] = useState([]);         // full data from Wikidata
-  const [filteredCompanies, setFilteredCompanies] = useState([]); // after filters
+  const [companies, setCompanies] = useState([]);
+  const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [hoveredNode, setHoveredNode] = useState(null);
   const [activeCompany, setActiveCompany] = useState(null);
-  const [zoomScale, setZoomScale] = useState(0.25);
+  const [zoomScale, setZoomScale] = useState(0.55);
   const [loading, setLoading] = useState(true);
 
-  // Default to top-10, with country = "United States of America" 
-  // (which is the common label on Wikidata for US-based entities).
   const [filters, setFilters] = useState({
     selectedCountries: [],
     topN: 10,
@@ -307,10 +305,10 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>FoundedBy (Wikidata + Founder Images)</h1>
-        <p style={{ fontSize: '0.9rem', maxWidth: '400px' }}>
+        <h1>FoundedBy</h1>
+        <p>
           Showing real companies from Wikidata (sorted by revenue). Click a node to see
-          founder(s) with actual Wikidata images if available.
+          founder(s) with actual images from Wikidata if available.
         </p>
       </header>
 
