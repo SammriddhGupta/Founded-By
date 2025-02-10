@@ -13,12 +13,14 @@ const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
   const [patternScale, setPatternScale] = useState({ x: 1, y: 1 });
   const [patternOffset, setPatternOffset] = useState({ x: 0, y: 0 });
 
+  const publishableToken = 'pk_JVUjIzTBSuqt9RfzmlAqVA';
+
   useEffect(() => {
     if (!company.domain) return;
 
     const img = new window.Image();
     img.crossOrigin = 'Anonymous'; 
-    img.src = `https://logo.clearbit.com/${company.domain}`;
+    img.src = `https://img.logo.dev/${company.domain}?token=${publishableToken}&retina=true`
 
     img.onload = () => {
       setLogo(img);
