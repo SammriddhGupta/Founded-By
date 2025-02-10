@@ -15,7 +15,8 @@ function App() {
   const [filteredCompanies, setFilteredCompanies] = useState([]); // after filters
   const [hoveredNode, setHoveredNode] = useState(null);
   const [activeCompany, setActiveCompany] = useState(null);
-  const [zoomScale, setZoomScale] = useState(1);
+  const [zoomScale, setZoomScale] = useState(0.25);
+  const [loading, setLoading] = useState(true);
 
   // Default to top-10, with country = "United States of America" 
   // (which is the common label on Wikidata for US-based entities).
@@ -180,8 +181,10 @@ function App() {
   
         // Finally set state
         setCompanies(companyArray);
+        setLoading(false);
       } catch (err) {
         console.error('SPARQL or MediaWiki fetch error:', err);
+        setLoading(false);
       }
     }
   
@@ -311,13 +314,19 @@ function App() {
         </p>
       </header>
 
+      {loading && (
+        <div className="spinner-container">
+          <div className="spinner"></div>
+        </div>
+      )}
+
       <Filters
         allCountries={allCountries}
         filters={filters}
         onChange={handleFilterChange}
       />
 
-      <Canvas onWheel={handleWheel}>
+      <Canvas onWheel={handleWheel} initialScale={zoomScale}>
         {filteredCompanies.map((company) => (
           <CompanyIcon
             key={company.id}
