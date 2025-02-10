@@ -1,4 +1,5 @@
 import { Stage, Layer } from 'react-konva';
+import PropTypes from 'prop-types';
 import './Canvas.css';
 
 const Canvas = ({ children, onWheel, initialScale = 1 }) => {
@@ -19,6 +20,12 @@ const Canvas = ({ children, onWheel, initialScale = 1 }) => {
       </Stage>
     </div>
   );
+};
+
+Canvas.propTypes = {
+  children: PropTypes.node.isRequired,
+  onWheel: PropTypes.func,
+  initialScale: PropTypes.number,
 };
 
 export default Canvas;
