@@ -243,7 +243,7 @@ function App() {
     const gap = 150; // desired gap between the circles
     
     // Calculate the offset distance so the circles don't overlap:
-    const offsetDistance = companyRadius + gap + founderRadius; // e.g. 40 + 10 + 30 = 80
+    const offsetDistance = companyRadius + gap + founderRadius;
     
     const angleStep = (2 * Math.PI) / count;
     return Array.from({ length: count }, (_, i) => {

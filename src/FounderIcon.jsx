@@ -4,7 +4,6 @@ import PropTypes from 'prop-types';
 import Konva from 'konva';
 
 const FounderIcon = ({ founder, x, y, onHover }) => {
-  // Define a larger radius for a bigger icon
   // also change in app.jsx
   const radius = 180;
   const diameter = radius * 2;
@@ -30,7 +29,6 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
       setPatternOffset({ x: img.width / 2, y: img.height / 2 });
     };
 
-    // Fallback: if the image fails to load, use a placeholder
     img.onerror = () => {
       const fallback = new window.Image();
       fallback.crossOrigin = 'Anonymous';
