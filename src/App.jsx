@@ -57,7 +57,7 @@ function App() {
         `;
 
         const res = await fetch(
-          `http://localhost:4000/sparql?query=${encodeURIComponent(query)}`
+          `${import.meta.env.VITE_API_URL}/sparql?query=${encodeURIComponent(query)}`
         );
         const data = await res.json();
         const rawRows = data.results.bindings;
