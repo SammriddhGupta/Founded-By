@@ -4,7 +4,6 @@ import PropTypes from 'prop-types';
 import Konva from 'konva';
 
 const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
-  // Increase radius so the icon is bigger on screen
   // also change in app.jsx
   const [radius] = useState(200);
   const diameter = radius * 2;
@@ -13,7 +12,7 @@ const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
   const [patternScale, setPatternScale] = useState({ x: 1, y: 1 });
   const [patternOffset, setPatternOffset] = useState({ x: 0, y: 0 });
 
-  const publishableToken = 'pk_JVUjIzTBSuqt9RfzmlAqVA';
+  const publishableToken = import.meta.env.VITE_LOGO_DEV_PUBLISHABLE_KEY;
 
   useEffect(() => {
     if (!company.domain) return;
@@ -33,7 +32,7 @@ const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
       setPatternOffset({ x: img.width / 2, y: img.height / 2 });
     };
 
-    // Fallback if Clearbit fails
+    // Fallback if logo.dev fails
     img.onerror = () => {
       const fallbackUrl = `https://placehold.co/${diameter}x${diameter}/36454F/ffffff.png?text=${encodeURIComponent(company.name)}&font=Open+Sans`;
       const fallback = new window.Image();
@@ -46,7 +45,7 @@ const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
         setPatternOffset({ x: fallback.width / 2, y: fallback.height / 2 });
       };
     };
-  }, [company.domain, company.name, diameter]);
+  }, [company.domain, company.name, diameter, publishableToken]);
 
   return (
     <Circle
