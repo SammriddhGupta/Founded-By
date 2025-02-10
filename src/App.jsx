@@ -375,6 +375,14 @@ function App() {
       </Canvas>
 
       <Tooltip hoveredNode={hoveredNode} />
+      <footer className="footer">
+        Company Logos provided by <a href="https://logo.dev" target="_blank" rel="noopener noreferrer">Logo.dev</a>
+        <br />
+        Founder Images courtesy of <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>
+        <br />
+        © {new Date().getFullYear()} Sammriddh Gupta. All rights reserved.
+      </footer>
+
     </div>
   );
 }

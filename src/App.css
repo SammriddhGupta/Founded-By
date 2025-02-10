@@ -55,3 +55,14 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #777;
+  padding: 10px 0;
+  background: rgba(255, 255, 255, 0.8);
+}
