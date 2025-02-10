@@ -1,5 +1,6 @@
 import { Circle } from 'react-konva';
 import { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 
 const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
   // Increase radius so the icon is bigger on screen
@@ -66,6 +67,21 @@ const CompanyIcon = ({ company, x, y, onHover, onClick, onDragEnd }) => {
       }}
     />
   );
+};
+
+CompanyIcon.propTypes = {
+  company: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    domain: PropTypes.string,
+    name: PropTypes.string,
+    country: PropTypes.string,
+    revenue: PropTypes.number,
+  }).isRequired,
+  x: PropTypes.number.isRequired,
+  y: PropTypes.number.isRequired,
+  onHover: PropTypes.func,
+  onClick: PropTypes.func,
+  onDragEnd: PropTypes.func,
 };
 
 export default CompanyIcon;
