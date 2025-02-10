@@ -1,10 +1,11 @@
 import { Circle } from 'react-konva';
 import { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 
 const FounderIcon = ({ founder, x, y, onHover }) => {
   // Define a larger radius for a bigger icon
   // also change in app.jsx
-  const radius = 180; // For example, 80 pixels radius (diameter = 160)
+  const radius = 180;
   const diameter = radius * 2;
 
   const [face, setFace] = useState(null);
@@ -12,7 +13,7 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
   const [patternOffset, setPatternOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const imgUrl = founder.image; // This should be a direct thumbnail URL from MediaWiki API
+    const imgUrl = founder.image;
     if (!imgUrl) return;
 
     const img = new window.Image();
@@ -61,8 +62,25 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
       onMouseLeave={() => {
         if (onHover) onHover(null, null);
       }}
+      onClick={() => {
+        if (founder.wiki) {
+          window.open(founder.wiki, '_blank');
+        }
+      }}
     />
   );
 };
+
+FounderIcon.propTypes = {
+  founder: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    wiki: PropTypes.string,
+    image: PropTypes.string,
+  }).isRequired,
+  x: PropTypes.number.isRequired,
+  y: PropTypes.number.isRequired,
+  onHover: PropTypes.func,
+};
+
 
 export default FounderIcon;
