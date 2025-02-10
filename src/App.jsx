@@ -7,7 +7,6 @@ import Filters from './Filters';
 import './App.css';
 import { Line } from 'react-konva';
 
-const WIKIDATA_SPARQL_URL = 'https://query.wikidata.org/sparql';
 const COMPANY_RADIUS = 200;
 const FOUNDER_RADIUS = 180;
 
@@ -16,7 +15,8 @@ function App() {
   const [filteredCompanies, setFilteredCompanies] = useState([]); // after filters
   const [hoveredNode, setHoveredNode] = useState(null);
   const [activeCompany, setActiveCompany] = useState(null);
-  const [zoomScale, setZoomScale] = useState(1);
+  const [zoomScale, setZoomScale] = useState(0.25);
+  const [loading, setLoading] = useState(true);
 
   // Default to top-10, with country = "United States of America" 
   // (which is the common label on Wikidata for US-based entities).
@@ -63,8 +63,6 @@ function App() {
   
         const rawRows = data.results.bindings;
         const tempMap = {};
-  
-        // Collect "File:..." names for later MediaWiki calls
         const allFileNames = new Set();
   
         rawRows.forEach((row) => {
@@ -76,20 +74,14 @@ function App() {
           const founderId = row.founder.value;
           const founderName = row.founderLabel?.value || 'Unknown';
           const founderWiki = row.founderArticle?.value || '';
-  
-          // E.g. http://commons.wikimedia.org/wiki/Special:FilePath/Roman%20Abramovich.png
           const p18Url = row.founderImage?.value || '';
   
           let founderImageFileName = '';
           if (p18Url) {
             // strip out the path prefix
             const afterPath = p18Url.replace(/^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\//, '');
-            const decoded = decodeURIComponent(afterPath); // "Roman Abramovich.png"
-            if (!decoded.startsWith('File:')) {
-              founderImageFileName = `File:${decoded}`;
-            } else {
-              founderImageFileName = decoded;
-            }
+            const decoded = decodeURIComponent(afterPath);
+            founderImageFileName = decoded.startsWith('File:') ? decoded : `File:${decoded}`;
             allFileNames.add(founderImageFileName);
           }
   
@@ -101,9 +93,6 @@ function App() {
               revenue: revenue,
               domain: domain,
               founders: [],
-              // random positions
-              x: Math.floor(Math.random() * 2000 + 100),
-              y: Math.floor(Math.random() * 2000 + 100),
             };
           }
   
@@ -122,6 +111,27 @@ function App() {
         let companyArray = Object.values(tempMap);
         // Sort by revenue descending
         companyArray.sort((a, b) => b.revenue - a.revenue);
+
+        // Compute non-overlapping positions using a simple grid layout.
+        const count = companyArray.length;
+        // Use a grid with approximately equal number of columns and rows:
+        const gridCols = Math.ceil(Math.sqrt(count));
+        const gridRows = Math.ceil(count / gridCols);
+        // Define a canvas area (adjust these values as needed):
+        const canvasWidth = 9000;
+        const canvasHeight = 9000;
+        const cellWidth = canvasWidth / gridCols;
+        const cellHeight = canvasHeight / gridRows;
+    
+        companyArray = companyArray.map((company, index) => {
+          const col = index % gridCols;
+          const row = Math.floor(index / gridCols);
+          return {
+            ...company,
+            x: Math.floor(col * cellWidth + cellWidth / 2),
+            y: Math.floor(row * cellHeight + cellHeight / 2)
+          };
+        });
   
         // B) Chunked approach to fetch thumbnail URLs from MediaWiki
         const fileNamesArray = Array.from(allFileNames);
@@ -171,17 +181,15 @@ function App() {
   
         // Finally set state
         setCompanies(companyArray);
+        setLoading(false);
       } catch (err) {
         console.error('SPARQL or MediaWiki fetch error:', err);
+        setLoading(false);
       }
     }
   
     fetchWikidataAndImages();
   }, []);
-  
-  
-
-
 
   // =========================================================================
   // 2) Apply filters (topN, selectedCountries) whenever [companies, filters] changes
@@ -306,13 +314,19 @@ function App() {
         </p>
       </header>
 
+      {loading && (
+        <div className="spinner-container">
+          <div className="spinner"></div>
+        </div>
+      )}
+
       <Filters
         allCountries={allCountries}
         filters={filters}
         onChange={handleFilterChange}
       />
 
-      <Canvas onWheel={handleWheel}>
+      <Canvas onWheel={handleWheel} initialScale={zoomScale}>
         {filteredCompanies.map((company) => (
           <CompanyIcon
             key={company.id}

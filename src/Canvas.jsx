@@ -1,7 +1,7 @@
 import { Stage, Layer } from 'react-konva';
 import './Canvas.css';
 
-const Canvas = ({ children, onWheel }) => {
+const Canvas = ({ children, onWheel, initialScale = 1 }) => {
   // Use full viewport dimensions.
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -13,6 +13,7 @@ const Canvas = ({ children, onWheel }) => {
         height={height}
         draggable
         onWheel={onWheel}
+        scale={{ x: initialScale, y: initialScale }}
       >
         <Layer>{children}</Layer>
       </Stage>
