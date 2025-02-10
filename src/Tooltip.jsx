@@ -7,8 +7,8 @@ const Tooltip = ({ hoveredNode }) => {
   const { type, data, pos } = hoveredNode;
   const style = {
     position: 'absolute',
-    top: pos.y + 10,
-    left: pos.x + 10,
+    top: pos.y + 1,
+    left: pos.x + 1,
   };
 
   if (type === 'company') {
@@ -25,13 +25,6 @@ const Tooltip = ({ hoveredNode }) => {
     return (
       <div className="tooltip" style={style}>
         <strong>{data.name}</strong>
-        {data.wiki && (
-          <p>
-            <a href={data.wiki} target="_blank" rel="noopener noreferrer">
-              Wikipedia
-            </a>
-          </p>
-        )}
       </div>
     );
   }
