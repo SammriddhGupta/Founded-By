@@ -4,7 +4,7 @@ import './Filters.css';
 
 const Filters = ({ allCountries, filters, onChange }) => {
   const { selectedCountries, topN } = filters;
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
