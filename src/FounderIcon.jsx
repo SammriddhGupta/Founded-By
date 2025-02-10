@@ -1,6 +1,7 @@
 import { Circle } from 'react-konva';
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import Konva from 'konva';
 
 const FounderIcon = ({ founder, x, y, onHover }) => {
   // Define a larger radius for a bigger icon
@@ -13,7 +14,7 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
   const [patternOffset, setPatternOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const imgUrl = founder.image;
+    const imgUrl = founder.image || `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(founder.name)}&font=Open+Sans`;
     if (!imgUrl) return;
 
     const img = new window.Image();
@@ -33,7 +34,7 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
     img.onerror = () => {
       const fallback = new window.Image();
       fallback.crossOrigin = 'Anonymous';
-      fallback.src = `https://via.placeholder.com/${diameter}?text=${encodeURIComponent(founder.name)}`;
+      fallback.src = `https://placehold.co/${diameter}x${diameter}/36454F/ffffff?text=${encodeURIComponent(founder.name)}&font=Open+Sans`;
       fallback.onload = () => {
         setFace(fallback);
         const scale = Math.min(diameter / fallback.width, diameter / fallback.height);
@@ -53,13 +54,33 @@ const FounderIcon = ({ founder, x, y, onHover }) => {
       fillPatternImage={face}
       fillPatternScale={patternScale}
       fillPatternOffset={patternOffset}
+      shadowColor="red"
+      shadowBlur={10}
+      shadowOffset={{ x: 5, y: 5 }}
+      shadowOpacity={0.2}
       onMouseEnter={(e) => {
+        const shape = e.target;
+        new Konva.Tween({
+          node: shape,
+          duration: 0.2,
+          scaleX: 1.1,
+          scaleY: 1.1,
+        }).play();
+        e.target.getStage().container().style.cursor = 'pointer';
         if (onHover) {
           const pos = e.target.getStage().getPointerPosition();
           onHover(founder, pos);
         }
       }}
-      onMouseLeave={() => {
+      onMouseLeave={(e) => {
+        const shape = e.target;
+        new Konva.Tween({
+          node: shape,
+          duration: 0.2,
+          scaleX: 1,
+          scaleY: 1,
+        }).play();
+        e.target.getStage().container().style.cursor = 'default';
         if (onHover) onHover(null, null);
       }}
       onClick={() => {
