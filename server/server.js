@@ -19,7 +19,6 @@ app.get('/sparql', async (req, res) => {
       headers: { Accept: 'application/sparql-results+json' },
     });
     const data = await wikidataResponse.json();
-    console.timeEnd('FetchWikidata');
 
     res.json(data);
   } catch (error) {
