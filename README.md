@@ -123,3 +123,7 @@ node server.js
 
 5) Open the App:
 Visit http://localhost:5173 (or your configured port) in your browser.
+
+
+#### Credits
+Favicon: <a href="https://www.freepik.com/icon/search_15659390#fromView=search&page=1&position=7&uuid=41ecf639-0484-4090-b8a0-f9320dc46aa0">Icon by prinda895</a> title="search icon">Favicon from - Flaticon</a>
