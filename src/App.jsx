@@ -412,7 +412,6 @@ function App() {
         >
           Wikimedia Commons
         </a>
-        <br />© {new Date().getFullYear()} Sammriddh Gupta. All rights reserved.
       </footer>
     </div>
   );
